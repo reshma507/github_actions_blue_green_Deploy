@@ -4,7 +4,7 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
   "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole-reshma",
+  "executionRoleArn": "arn:aws:iam::301782007642:role/ecsTaskExecutionRole-reshma",
   "containerDefinitions": [
     {
       "name": "strapi-reshma",
@@ -31,4 +31,3 @@
     }
   ]
 }
-
