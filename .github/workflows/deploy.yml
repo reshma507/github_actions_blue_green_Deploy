@@ -44,12 +44,13 @@ jobs:
 
       - name: Deploy using CodeDeploy (Blue/Green)
         run: |
-          sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
+         sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
 
-          aws deploy create-deployment \
-            --application-name strapi-codedeploy-reshma \
-            --deployment-group-name strapi-dg-reshma \
-            --revision revisionType=AppSpecContent,appSpecContent="{\"content\":\"$(cat appspec-rendered.yml | sed 's/\"/\\\\\"/g' | tr -d '\n')\"}"
+         aws deploy create-deployment \
+         --application-name strapi-codedeploy-reshma \
+         --deployment-group-name strapi-dg-reshma \
+         --revision revisionType=AppSpecContent,appSpecContent="{\"content\":\"$(sed 's/\"/\\\\\"/g' appspec-rendered.yml | tr '\n' ' ')\"}"
+
 
 
 # name: Deploy to ECS (Blue-Green)
