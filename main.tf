@@ -327,6 +327,8 @@ resource "aws_ecs_service" "strapi" {
   cluster       = aws_ecs_cluster.strapi.id
   desired_count = 1
 
+  task_definition = aws_ecs_task_definition.strapi.arn  # ✅ REQUIRED
+
   deployment_controller {
     type = "CODE_DEPLOY"
   }
