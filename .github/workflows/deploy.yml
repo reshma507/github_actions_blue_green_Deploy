@@ -60,15 +60,13 @@ jobs:
           sudo wget https://github.com/mikefarah/yq/releases/download/v4.35.2/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
           
-          # Convert YAML → JSON
+          # Convert YAML → JSON (file method)
           yq -o=json e appspec-rendered.yml > appspec-rendered.json
           cat appspec-rendered.json
 
-      # Step 8: Create CodeDeploy Deployment
+      # Step 8: Create CodeDeploy Deployment (using file)
       - name: Create CodeDeploy Deployment
         run: |
           aws deploy create-deployment \
-            --application-name strapi-codedeploy-reshma \
-            --deployment-group-name strapi-dg-reshma \
-            --revision revisionType=AppSpecContent,appSpecContent="$(cat appspec-rendered.json)" \
+            --cli-input-json file://appspec-rendered.json \
             --region eu-north-1
