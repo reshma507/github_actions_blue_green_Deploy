@@ -7,9 +7,7 @@ output "rds_endpoint" {
 output "alb_dns_name" {
   value = aws_lb.strapi.dns_name
 }
-output "alb_dns_name" {
-  value = aws_lb.strapi.dns_name
-}
+
 
 output "codedeploy_app" {
   value = aws_codedeploy_app.strapi.name
