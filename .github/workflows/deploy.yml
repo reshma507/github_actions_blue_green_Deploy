@@ -9,19 +9,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout code
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # Step 2: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: eu-north-1
 
+      # Step 3: Login to ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Step 4: Build & push Docker image
       - name: Build & Push Docker Image
         run: |
           IMAGE_URI=${{ secrets.ECR_REPO }}:${{ github.sha }}
@@ -29,83 +33,39 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
+      # Step 5: Render ECS task definition
       - name: Render ECS Task Definition
         run: |
           sed "s|<IMAGE_URI>|$IMAGE_URI|g" deploy/ecs-task-def.json > task-def.json
 
+      # Step 6: Register ECS task definition
       - name: Register ECS Task Definition
         id: taskdef
         run: |
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://task-def.json \
             --query "taskDefinition.taskDefinitionArn" \
-            --output text)
+            --output text \
+            --region eu-north-1)
           echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
 
+      # Step 7: Render AppSpec and convert to JSON
       - name: Render AppSpec
         run: |
-         sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
-         cat appspec-rendered.yml
+          # Replace TASK_DEFINITION placeholder
+          sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
+          cat appspec-rendered.yml
+          # Convert YAML to JSON for CodeDeploy
+          sudo apt-get update && sudo apt-get install -y python3-pip
+          pip3 install yq
+          yq -o=json e appspec-rendered.yml > appspec-rendered.json
+          cat appspec-rendered.json
 
+      # Step 8: Create CodeDeploy deployment
       - name: Create CodeDeploy Deployment
         run: |
-         aws deploy create-deployment \
-         --application-name strapi-codedeploy-reshma \
-         --deployment-group-name strapi-dg-reshma \
-         --revision revisionType=AppSpecContent,appSpecContent="$(cat appspec-rendered.yml)"
-
-
-
-
-
-
-# name: Deploy to ECS (Blue-Green)
-
-# on:
-#   push:
-#     branches: ["main"]
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
-
-#       - name: Configure AWS
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ap-south-1
-
-#       - name: Login to ECR
-#         uses: aws-actions/amazon-ecr-login@v2
-
-#       - name: Build & Push Docker Image
-#         run: |
-#           IMAGE_URI=${{ secrets.ECR_REPO_URI }}:${{ github.sha }}
-#           docker build -t $IMAGE_URI .
-#           docker push $IMAGE_URI
-#           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
-
-#       - name: Render Task Definition
-#         run: |
-#           sed "s|<IMAGE_URI>|$IMAGE_URI|g" deploy/ecs_task_def.json > task-def.json
-
-#       - name: Register Task Definition
-#         id: task-def
-#         run: |
-#           TASK_DEF_ARN=$(aws ecs register-task-definition \
-#             --cli-input-json file://task-def.json \
-#             --query "taskDefinition.taskDefinitionArn" \
-#             --output text)
-#           echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
-
-#       - name: Deploy via CodeDeploy
-#         run: |
-#           aws deploy create-deployment \
-#             --application-name strapi-codedeploy-reshma \
-#             --deployment-group-name strapi-dg-reshma \
-#             --revision revisionType=AppSpecContent,appSpecContent="{\"content\":\"$(cat deploy/appspec.yml | sed 's/\"/\\\\\"/g' | tr -d '\n')\"}"
+          aws deploy create-deployment \
+            --application-name strapi-codedeploy-reshma \
+            --deployment-group-name strapi-dg-reshma \
+            --revision revisionType=AppSpecContent,appSpecContent="$(cat appspec-rendered.json)" \
+            --region eu-north-1
