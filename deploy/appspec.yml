@@ -1,10 +1,11 @@
- version: 1
- Resources:
+version: 1
+Resources:
   - TargetService:
       Type: AWS::ECS::Service
       Properties:
-        TaskDefinition: "<TASK_DEFINITION>"
+        TaskDefinition: <TASK_DEFINITION>
         LoadBalancerInfo:
-          ContainerName: "strapi-reshma"
+          ContainerName: strapi-reshma
           ContainerPort: 1337
+
  
