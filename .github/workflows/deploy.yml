@@ -21,11 +21,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # Step 3: Login to ECR
+      # Step 3: Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Step 4: Build & push Docker image
+      # Step 4: Build & Push Docker Image
       - name: Build & Push Docker Image
         run: |
           IMAGE_URI=${{ secrets.ECR_REPO }}:${{ github.sha }}
@@ -33,12 +33,12 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      # Step 5: Render ECS task definition
+      # Step 5: Render ECS Task Definition
       - name: Render ECS Task Definition
         run: |
           sed "s|<IMAGE_URI>|$IMAGE_URI|g" deploy/ecs-task-def.json > task-def.json
 
-      # Step 6: Register ECS task definition
+      # Step 6: Register ECS Task Definition
       - name: Register ECS Task Definition
         id: taskdef
         run: |
@@ -55,13 +55,16 @@ jobs:
           # Replace TASK_DEFINITION placeholder
           sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
           cat appspec-rendered.yml
-          # Convert YAML to JSON for CodeDeploy
-          sudo apt-get update && sudo apt-get install -y python3-pip
-          pip3 install yq
+          
+          # Install yq v4 for YAML → JSON conversion
+          sudo wget https://github.com/mikefarah/yq/releases/download/v4.35.2/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+          
+          # Convert YAML → JSON
           yq -o=json e appspec-rendered.yml > appspec-rendered.json
           cat appspec-rendered.json
 
-      # Step 8: Create CodeDeploy deployment
+      # Step 8: Create CodeDeploy Deployment
       - name: Create CodeDeploy Deployment
         run: |
           aws deploy create-deployment \
