@@ -42,23 +42,29 @@ jobs:
             --output text)
           echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
 
+      - name: Render AppSpec
+        run: |
+         sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
+         ls -l appspec-rendered.yml
+
       - name: Deploy using CodeDeploy (Blue/Green)
         run: |
          APPSPEC_CONTENT=$(cat appspec-rendered.yml | sed 's/"/\\"/g' | tr '\n' ' ')
 
-          cat > deploy.json <<EOF
+         cat > deploy.json <<EOF
          {
-         "applicationName": "strapi-codedeploy-reshma",
-         "deploymentGroupName": "strapi-dg-reshma",
-         "revision": {
-         "revisionType": "AppSpecContent",
-         "appSpecContent": {
-          "content": "$APPSPEC_CONTENT"
-         }
-         }
-         }
+           "applicationName": "strapi-codedeploy-reshma",
+           "deploymentGroupName": "strapi-dg-reshma",
+           "revision": {
+           "revisionType": "AppSpecContent",
+           "appSpecContent": {
+           "content": "$APPSPEC_CONTENT"
+          }
+          }
+          }
          EOF
           aws deploy create-deployment --cli-input-json file://deploy.json
+
 
 
 
