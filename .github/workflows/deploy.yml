@@ -44,12 +44,22 @@ jobs:
 
       - name: Deploy using CodeDeploy (Blue/Green)
         run: |
-         sed "s|<TASK_DEFINITION>|$TASK_DEF_ARN|g" deploy/appspec.yml > appspec-rendered.yml
+         APPSPEC_CONTENT=$(cat appspec-rendered.yml | sed 's/"/\\"/g' | tr '\n' ' ')
 
-         aws deploy create-deployment \
-         --application-name strapi-codedeploy-reshma \
-         --deployment-group-name strapi-dg-reshma \
-         --revision revisionType=AppSpecContent,appSpecContent="{\"content\":\"$(sed 's/\"/\\\\\"/g' appspec-rendered.yml | tr '\n' ' ')\"}"
+          cat > deploy.json <<EOF
+         {
+         "applicationName": "strapi-codedeploy-reshma",
+         "deploymentGroupName": "strapi-dg-reshma",
+         "revision": {
+         "revisionType": "AppSpecContent",
+         "appSpecContent": {
+          "content": "$APPSPEC_CONTENT"
+         }
+         }
+         }
+         EOF
+          aws deploy create-deployment --cli-input-json file://deploy.json
+
 
 
 
