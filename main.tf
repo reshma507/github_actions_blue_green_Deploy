@@ -259,15 +259,25 @@ resource "aws_ecs_task_definition" "strapi" {
   ])
 }
 resource "aws_codedeploy_deployment_group" "strapi" {
-  app_name               = aws_codedeploy_app.strapi.name
-  deployment_group_name  = "strapi-dg-reshma"
-  service_role_arn       = data.aws_iam_role.codedeploy_role.arn
+  app_name              = aws_codedeploy_app.strapi.name
+  deployment_group_name = "strapi-dg-reshma"
+  service_role_arn      = data.aws_iam_role.codedeploy_role.arn
+
+  deployment_style {
+    deployment_type   = "BLUE_GREEN"
+    deployment_option = "WITH_TRAFFIC_CONTROL"
+  }
 
   deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
 
   auto_rollback_configuration {
     enabled = true
     events  = ["DEPLOYMENT_FAILURE"]
+  }
+
+  ecs_service {
+    cluster_name = aws_ecs_cluster.strapi.name
+    service_name = aws_ecs_service.strapi.name
   }
 
   blue_green_deployment_config {
@@ -280,12 +290,7 @@ resource "aws_codedeploy_deployment_group" "strapi" {
       action_on_timeout = "CONTINUE_DEPLOYMENT"
     }
   }
-
-  ecs_service {
-    cluster_name = aws_ecs_cluster.strapi.name
-    service_name = aws_ecs_service.strapi.name
-  }
-
+ 
   load_balancer_info {
     target_group_pair_info {
       prod_traffic_route {
@@ -301,12 +306,13 @@ resource "aws_codedeploy_deployment_group" "strapi" {
       }
     }
   }
-  depends_on = [
-  aws_ecs_service.strapi,
-  aws_lb_listener.http
-]
 
+  depends_on = [
+    aws_ecs_service.strapi,
+    aws_lb_listener.http
+  ]
 }
+
 
 
 # resource "aws_ecs_service" "strapi" {
@@ -327,9 +333,8 @@ resource "aws_codedeploy_deployment_group" "strapi" {
 resource "aws_ecs_service" "strapi" {
   name          = "strapi-service-reshma"
   cluster       = aws_ecs_cluster.strapi.id
+  task_definition = aws_ecs_task_definition.strapi.arn
   desired_count = 1
-
-  task_definition = aws_ecs_task_definition.strapi.arn  # ✅ REQUIRED
 
   deployment_controller {
     type = "CODE_DEPLOY"
@@ -354,10 +359,9 @@ resource "aws_ecs_service" "strapi" {
 
   health_check_grace_period_seconds = 120
 
-  depends_on = [
-    aws_lb_listener.http
-  ]
+  depends_on = [aws_lb_listener.http]
 }
+
 
 
 # provider "aws" {

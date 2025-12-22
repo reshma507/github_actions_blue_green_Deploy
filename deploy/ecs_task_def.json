@@ -15,7 +15,20 @@
           "containerPort": 1337,
           "protocol": "tcp"
         }
-      ]
+      ],
+      "environment": [
+        { "name": "HOST", "value": "0.0.0.0" },
+        { "name": "PORT", "value": "1337" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/strapi-service-reshma",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "strapi"
+        }
+      }
     }
   ]
 }
+
