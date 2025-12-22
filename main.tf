@@ -261,7 +261,7 @@ resource "aws_ecs_task_definition" "strapi" {
 resource "aws_codedeploy_deployment_group" "strapi" {
   app_name               = aws_codedeploy_app.strapi.name
   deployment_group_name  = "strapi-dg-reshma"
-  service_role_arn       = aws_iam_role.codedeploy_role.arn
+  service_role_arn       = data.aws_iam_role.codedeploy_role.arn
 
   deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
 
