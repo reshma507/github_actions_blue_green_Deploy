@@ -129,7 +129,17 @@ resource "aws_lb_target_group" "strapi_blue" {
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
   target_type = "ip"
+
+  health_check {
+    path                = "/"
+    matcher             = "200,204,301,302"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
 }
+
 
 resource "aws_lb_target_group" "strapi_green" {
   name        = "strapi-green-tg-reshma"
@@ -137,6 +147,15 @@ resource "aws_lb_target_group" "strapi_green" {
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
   target_type = "ip"
+
+  health_check {
+    path                = "/"
+    matcher             = "200,204,301,302"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
 }
 
 
@@ -231,6 +250,7 @@ resource "aws_ecs_service" "strapi" {
     type = "CODE_DEPLOY"
   }
  
+ health_check_grace_period_seconds = 60
   network_configuration {
     subnets          = data.aws_subnets.default.ids
     security_groups  = [aws_security_group.ecs_sg.id]
