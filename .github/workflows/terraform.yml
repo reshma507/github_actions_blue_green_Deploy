@@ -45,52 +45,43 @@ jobs:
             terraform destroy -auto-approve \
               -var="image_tag=${{ github.event.inputs.image_tag }}"
           fi
-
-      # --------------------------------------------------
-      # 🚀 CREATE CODEDEPLOY DEPLOYMENT (ONLY ON APPLY)
-      # --------------------------------------------------
+ 
       - name: Create CodeDeploy Deployment
         if: github.event.inputs.action == 'apply'
-        shell: bash
-        run: |
+        run: | 
           set -e
 
           echo "Fetching latest task definition..."
-
-          TASK_DEF_ARN=$(aws ecs describe-task-definition \
+          TASK_DEF_ARN=$(aws ecs describe-task-definition \ 
             --task-definition strapi-task-reshma \
             --query 'taskDefinition.taskDefinitionArn' \
             --output text)
 
           echo "Task Definition ARN: $TASK_DEF_ARN"
 
-          # ------------------------------
-          # Create AppSpec YAML (REQUIRED)
-          # ------------------------------
+          # Write AppSpec YAML (no indentation!)
           cat > appspec.yaml <<EOF
-          version: 1
-          Resources:
-            - TargetService:
-                Type: AWS::ECS::Service
-                Properties:
-                  TaskDefinition: $TASK_DEF_ARN
-                  LoadBalancerInfo:
-                    ContainerName: strapi-reshma
-                    ContainerPort: 1337
-          EOF
+version: 1
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: $TASK_DEF_ARN
+        LoadBalancerInfo:
+          ContainerName: strapi-reshma
+          ContainerPort: 1337
+EOF
 
-          # ------------------------------
-          # Base64 encode AppSpec YAML
-          # ------------------------------
+          # Base64 encode AppSpec
           APPSPEC_B64=$(base64 -w 0 appspec.yaml)
 
           echo "Creating CodeDeploy deployment..."
-
           aws deploy create-deployment \
             --application-name strapi-codedeploy-reshma \
             --deployment-group-name strapi-dg-reshma \
             --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
             --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
+
 
 # name: CD - Terraform Deploy
 
