@@ -19,17 +19,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    steps: 
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
- 
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
- 
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -65,32 +65,24 @@ jobs:
           echo "Task Definition ARN: $TASK_DEF_ARN"
 
           # ------------------------------
-          # Create AppSpec file
+          # Create AppSpec YAML (REQUIRED)
           # ------------------------------
-          cat > appspec.json <<EOF
-          {
-            "version": 1,
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "$TASK_DEF_ARN",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "strapi-reshma",
-                      "ContainerPort": 1337
-                    }
-                  }
-                }
-              }
-            ]
-          }
+          cat > appspec.yaml <<EOF
+          version: 1
+          Resources:
+            - TargetService:
+                Type: AWS::ECS::Service
+                Properties:
+                  TaskDefinition: $TASK_DEF_ARN
+                  LoadBalancerInfo:
+                    ContainerName: strapi-reshma
+                    ContainerPort: 1337
           EOF
 
           # ------------------------------
-          # Base64 encode AppSpec (REQUIRED)
+          # Base64 encode AppSpec YAML
           # ------------------------------
-          APPSPEC_B64=$(base64 -w 0 appspec.json)
+          APPSPEC_B64=$(base64 -w 0 appspec.yaml)
 
           echo "Creating CodeDeploy deployment..."
 
@@ -99,6 +91,108 @@ jobs:
             --deployment-group-name strapi-dg-reshma \
             --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
             --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
+
+# name: CD - Terraform Deploy
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       image_tag:
+#         description: "Docker image tag to deploy"
+#         required: true
+#       action:
+#         description: "Terraform action"
+#         required: true
+#         default: "apply"
+#         type: choice
+#         options:
+#           - apply
+#           - destroy
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps: 
+#       - name: Checkout
+#         uses: actions/checkout@v4
+ 
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ secrets.AWS_REGION }}
+ 
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+
+#       - name: Terraform Init
+#         run: terraform init
+
+#       - name: Terraform Apply / Destroy
+#         run: |
+#           if [ "${{ github.event.inputs.action }}" = "apply" ]; then
+#             terraform apply -auto-approve \
+#               -var="image_tag=${{ github.event.inputs.image_tag }}"
+#           else
+#             terraform destroy -auto-approve \
+#               -var="image_tag=${{ github.event.inputs.image_tag }}"
+#           fi
+
+#       # --------------------------------------------------
+#       # 🚀 CREATE CODEDEPLOY DEPLOYMENT (ONLY ON APPLY)
+#       # --------------------------------------------------
+#       - name: Create CodeDeploy Deployment
+#         if: github.event.inputs.action == 'apply'
+#         shell: bash
+#         run: |
+#           set -e
+
+#           echo "Fetching latest task definition..."
+
+#           TASK_DEF_ARN=$(aws ecs describe-task-definition \
+#             --task-definition strapi-task-reshma \
+#             --query 'taskDefinition.taskDefinitionArn' \
+#             --output text)
+
+#           echo "Task Definition ARN: $TASK_DEF_ARN"
+
+#           # ------------------------------
+#           # Create AppSpec file
+#           # ------------------------------
+#           cat > appspec.json <<EOF
+#           {
+#             "version": 1,
+#             "Resources": [
+#               {
+#                 "TargetService": {
+#                   "Type": "AWS::ECS::Service",
+#                   "Properties": {
+#                     "TaskDefinition": "$TASK_DEF_ARN",
+#                     "LoadBalancerInfo": {
+#                       "ContainerName": "strapi-reshma",
+#                       "ContainerPort": 1337
+#                     }
+#                   }
+#                 }
+#               }
+#             ]
+#           }
+#           EOF
+
+#           # ------------------------------
+#           # Base64 encode AppSpec (REQUIRED)
+#           # ------------------------------
+#           APPSPEC_B64=$(base64 -w 0 appspec.json)
+
+#           echo "Creating CodeDeploy deployment..."
+
+#           aws deploy create-deployment \
+#             --application-name strapi-codedeploy-reshma \
+#             --deployment-group-name strapi-dg-reshma \
+#             --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
+#             --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
   
  
 # name: CD - Terraform Deploy
