@@ -14,13 +14,17 @@ on:
         options:
           - apply
           - destroy
+      deploy_app:
+        description: "Deploy ECS application"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  deploy:
+  terraform:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
@@ -46,32 +50,62 @@ jobs:
               -var="image_tag=${{ github.event.inputs.image_tag }}"
           fi
 
-      - name: Create CodeDeploy Deployment
-        if: github.event.inputs.action == 'apply'
+  ecs-deploy:
+    if: ${{ github.event.inputs.deploy_app == 'true' }}
+    runs-on: ubuntu-latest
+    needs: terraform
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Get latest ECS Task Definition ARN
+        id: get_task_def
         run: |
-          set -e
-
-          echo "Fetching latest task definition..."
-          TASK_DEF_ARN=$(aws ecs describe-task-definition \
-            --task-definition strapi-task-reshma \
-            --query 'taskDefinition.taskDefinitionArn' \
+          TASK_ARN=$(aws ecs list-task-definitions \
+            --family-prefix strapi-task-reshma \
+            --sort DESC \
+            --max-items 1 \
+            --query 'taskDefinitionArns[0]' \
             --output text)
+          echo "taskDefinitionArn=$TASK_ARN" >> "$GITHUB_OUTPUT"
 
-          echo "Task Definition ARN: $TASK_DEF_ARN"
+      - name: Trigger CodeDeploy Deployment
+        run: |
+          TASK_DEF_ARN="${{ steps.get_task_def.outputs.taskDefinitionArn }}"
 
-          sed -i "s|TASK_DEF_PLACEHOLDER|$TASK_DEF_ARN|" appspec.yml
+          REVISION_JSON=$(jq -n \
+            --arg taskdef "$TASK_DEF_ARN" \
+            '{
+              revisionType: "AppSpecContent",
+              appSpecContent: {
+                version: "1.0",
+                Resources: [{
+                  TargetService: {
+                    Type: "AWS::ECS::Service",
+                    Properties: {
+                      TaskDefinition: $taskdef,
+                      LoadBalancerInfo: {
+                        ContainerName: "strapi",
+                        ContainerPort: 1337
+                      }
+                    }
+                  }
+                }]
+              }
+            }')
 
-          APPSPEC_B64=$(base64 -w 0 appspec.yml)
- 
           aws deploy create-deployment \
             --application-name strapi-codedeploy-reshma \
             --deployment-group-name strapi-dg-reshma \
-            --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
+            --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
+            --revision "$REVISION_JSON" \
             --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
-
-
-
-
+ 
+ 
 # name: CD - Terraform Deploy
 
 # on:
