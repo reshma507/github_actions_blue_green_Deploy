@@ -63,43 +63,43 @@ jobs:
 
           echo "Task Definition ARN: $TASK_DEF_ARN"
 
-          cat <<EOF > appspec.json
-          {
-            "version": 1,
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "$TASK_DEF_ARN",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "strapi-reshma",
-                      "ContainerPort": 1337
-                    }
-                  }
-                }
-              }
-            ]
-          }
-          EOF
+          printf '%s\n' \
+          '{' \
+          '  "version": 1,' \
+          '  "Resources": [' \
+          '    {' \
+          '      "TargetService": {' \
+          '        "Type": "AWS::ECS::Service",' \
+          '        "Properties": {' \
+          "          \"TaskDefinition\": \"$TASK_DEF_ARN\"," \
+          '          "LoadBalancerInfo": {' \
+          '            "ContainerName": "strapi-reshma",' \
+          '            "ContainerPort": 1337' \
+          '          }' \
+          '        }' \
+          '      }' \
+          '    }' \
+          '  ]' \
+          '}' > appspec.json
 
-          cat <<EOF > deployment.json
-          {
-            "applicationName": "strapi-codedeploy-reshma",
-            "deploymentGroupName": "strapi-dg-reshma",
-            "revision": {
-              "revisionType": "AppSpecContent",
-              "appSpecContent": {
-                "content": "$(jq -c . appspec.json)"
-              }
-            },
-            "description": "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
-          }
-          EOF
+          APP_SPEC=$(jq -c . appspec.json)
+
+          printf '%s\n' \
+          '{' \
+          '  "applicationName": "strapi-codedeploy-reshma",' \
+          '  "deploymentGroupName": "strapi-dg-reshma",' \
+          '  "revision": {' \
+          '    "revisionType": "AppSpecContent",' \
+          '    "appSpecContent": {' \
+          "      \"content\": \"$APP_SPEC\"" \
+          '    }' \
+          '  },' \
+          "  \"description\": \"GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}\"" \
+          '}' > deployment.json
 
           aws deploy create-deployment \
             --cli-input-json file://deployment.json
-
+  
 
 
 
