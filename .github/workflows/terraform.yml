@@ -64,12 +64,19 @@ jobs:
         id: get_task_def
         run: |
           TASK_ARN=$(aws ecs list-task-definitions \
-            --family-prefix strapi-task-reshma \
-            --sort DESC \
-            --max-items 1 \
-            --query 'taskDefinitionArns[0]' \
-            --output text)
+          --family-prefix strapi-task-reshma \
+          --sort DESC \
+          --max-items 1 \
+          --query 'taskDefinitionArns[0]' \
+          --output text)
+
+          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" == "None" ]; then
+          echo "ERROR: No ECS task definition found for family strapi-task-reshma"
+          exit 1
+          fi
+
           echo "taskDefinitionArn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+
 
       - name: Trigger CodeDeploy Deployment
         run: |
