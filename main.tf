@@ -240,17 +240,16 @@ resource "aws_ecs_task_definition" "strapi" {
 }
 
 resource "aws_ecs_service" "strapi" {
-  name            = "strapi-service-reshma"
-  cluster         = aws_ecs_cluster.strapi.id
-  task_definition = aws_ecs_task_definition.strapi.arn
+  name        = "strapi-service-reshma"
+  cluster    = aws_ecs_cluster.strapi.id
+  launch_type = "FARGATE"
   desired_count   = 1
-  launch_type     = "FARGATE"
+  
 
   deployment_controller {
     type = "CODE_DEPLOY"
   }
- 
- health_check_grace_period_seconds = 60
+
   network_configuration {
     subnets          = data.aws_subnets.default.ids
     security_groups  = [aws_security_group.ecs_sg.id]
@@ -263,9 +262,44 @@ resource "aws_ecs_service" "strapi" {
     container_port   = 1337
   }
 
+  lifecycle {
+    ignore_changes = [
+      task_definition,
+      load_balancer
+    ]
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 
-        # { name = "NODE_TLS_REJECT_UNAUTHORIZED", value = "0" },
+
+# resource "aws_ecs_service" "strapi" {
+#   name            = "strapi-service-reshma"
+#   cluster         = aws_ecs_cluster.strapi.id
+#   task_definition = aws_ecs_task_definition.strapi.arn
+#   desired_count   = 1
+#   launch_type     = "FARGATE"
+
+#   deployment_controller {
+#     type = "CODE_DEPLOY"
+#   }
+ 
+#  health_check_grace_period_seconds = 60
+#   network_configuration {
+#     subnets          = data.aws_subnets.default.ids
+#     security_groups  = [aws_security_group.ecs_sg.id]
+#     assign_public_ip = true
+#   }
+
+#   load_balancer {
+#     target_group_arn = aws_lb_target_group.strapi_blue.arn
+#     container_name   = "strapi-reshma"
+#     container_port   = 1337
+#   }
+
+#   depends_on = [aws_lb_listener.http]
+# }
+
+#         # { name = "NODE_TLS_REJECT_UNAUTHORIZED", value = "0" },
 
         
