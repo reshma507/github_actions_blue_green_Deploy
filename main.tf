@@ -240,15 +240,17 @@ resource "aws_ecs_task_definition" "strapi" {
 }
 
 resource "aws_ecs_service" "strapi" {
-  name        = "strapi-service-reshma"
-  cluster    = aws_ecs_cluster.strapi.id
-  launch_type = "FARGATE"
+  name            = "strapi-service-reshma"
+  cluster         = aws_ecs_cluster.strapi.id
+  task_definition = aws_ecs_task_definition.strapi.arn  # REQUIRED at creation
   desired_count   = 1
-  
+  launch_type     = "FARGATE"
 
   deployment_controller {
     type = "CODE_DEPLOY"
   }
+
+  health_check_grace_period_seconds = 60
 
   network_configuration {
     subnets          = data.aws_subnets.default.ids
@@ -264,13 +266,14 @@ resource "aws_ecs_service" "strapi" {
 
   lifecycle {
     ignore_changes = [
-      task_definition,
-      load_balancer
+      task_definition,   # CodeDeploy manages this
+      load_balancer      # CodeDeploy swaps TGs
     ]
   }
 
   depends_on = [aws_lb_listener.http]
 }
+
 
 
 # resource "aws_ecs_service" "strapi" {
