@@ -3,10 +3,11 @@ Resources:
   - TargetService:
       Type: AWS::ECS::Service
       Properties:
-        TaskDefinition: PLACEHOLDER_TASK  # 👈 This will be replaced by CodeDeploy
+        TaskDefinition: TASK_DEF_PLACEHOLDER
         LoadBalancerInfo:
           ContainerName: strapi-reshma
           ContainerPort: 1337
+
 
 # version: 1
 # Resources:
