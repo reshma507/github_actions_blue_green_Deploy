@@ -19,26 +19,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    steps:
-      # ------------------------------------
-      # Checkout Code
-      # ------------------------------------
+    steps: 
       - name: Checkout
         uses: actions/checkout@v4
-
-      # ------------------------------------
-      # Configure AWS
-      # ------------------------------------
+ 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
-      # ------------------------------------
-      # Terraform Setup
-      # ------------------------------------
+ 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -55,11 +46,12 @@ jobs:
               -var="image_tag=${{ github.event.inputs.image_tag }}"
           fi
 
-      # ------------------------------------
-      # 🚀 Create CodeDeploy Deployment (ONLY ON APPLY)
-      # ------------------------------------
+      # --------------------------------------------------
+      # 🚀 CREATE CODEDEPLOY DEPLOYMENT (ONLY ON APPLY)
+      # --------------------------------------------------
       - name: Create CodeDeploy Deployment
         if: github.event.inputs.action == 'apply'
+        shell: bash
         run: |
           set -e
 
@@ -95,16 +87,20 @@ jobs:
           }
           EOF
 
+          # ------------------------------
+          # Base64 encode AppSpec (REQUIRED)
+          # ------------------------------
+          APPSPEC_B64=$(base64 -w 0 appspec.json)
+
           echo "Creating CodeDeploy deployment..."
 
           aws deploy create-deployment \
             --application-name strapi-codedeploy-reshma \
             --deployment-group-name strapi-dg-reshma \
-            --revision revisionType=AppSpecContent,appSpecContent=content="$(jq -c . appspec.json)" \
+            --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
             --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
-
-
-
+  
+ 
 # name: CD - Terraform Deploy
 
 # on:
