@@ -4,8 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy"
+        description: "Docker image tag to deploy"
         required: true
+      action:
+        description: "Terraform action"
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - destroy
 
 jobs:
   deploy:
@@ -25,7 +33,43 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Apply
+      - name: Terraform Apply/Destroy
         run: |
-         terraform apply -auto-approve \
-         -var="image_tag=${{ github.event.inputs.image_tag }}"
+          if [ "${{ github.event.inputs.action }}" = "apply" ]; then
+            terraform apply -auto-approve \
+              -var="image_tag=${{ github.event.inputs.image_tag }}"
+          else
+            terraform destroy -auto-approve \
+              -var="image_tag=${{ github.event.inputs.image_tag }}"
+
+# name: CD - Terraform Deploy
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       image_tag:
+#         description: "Image tag to deploy"
+#         required: true
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ secrets.AWS_REGION }}
+
+#       - uses: hashicorp/setup-terraform@v3
+
+#       - name: Terraform Init
+#         run: terraform init
+
+#       - name: Terraform Apply
+#         run: |
+#          terraform apply -auto-approve \
+#          -var="image_tag=${{ github.event.inputs.image_tag }}"

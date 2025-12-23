@@ -1,5 +1,4 @@
-
-provider "aws" {
+ provider "aws" {
   region = var.aws_region
 }
 
@@ -236,7 +235,7 @@ resource "aws_ecs_service" "strapi" {
   deployment_controller {
     type = "CODE_DEPLOY"
   }
-  
+
 
   network_configuration {
     subnets          = data.aws_subnets.default.ids
