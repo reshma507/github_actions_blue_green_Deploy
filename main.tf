@@ -64,14 +64,7 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+ 
   egress {
     from_port   = 0
     to_port     = 0
@@ -79,9 +72,8 @@ resource "aws_security_group" "alb_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-
-
+ 
+ 
 # ---------------- RDS ----------------
 resource "aws_db_subnet_group" "default" {
   name       = "strapi-db-subnet-reshma"
@@ -120,38 +112,21 @@ resource "aws_lb" "strapi" {
   subnets            = data.aws_subnets.default.ids
 }
 resource "aws_lb_target_group" "strapi_blue" {
-  name        = "strapi-tg-blue-reshma"
+  name        = "strapi-blue-tg-reshma"
   port        = 1337
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
   target_type = "ip"
-
-  health_check {
-    path                = "/"
-    matcher             = "200-399"
-    interval            = 30
-    timeout             = 10
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
-}
+} 
 
 resource "aws_lb_target_group" "strapi_green" {
-  name        = "strapi-tg-green-reshma"
+  name        = "strapi-green-tg-reshma"
   port        = 1337
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
   target_type = "ip"
-
-  health_check {
-    path                = "/"
-    matcher             = "200-399"
-    interval            = 30
-    timeout             = 10
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
 }
+
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.strapi.arn
@@ -163,34 +138,24 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.strapi_blue.arn
   }
 }
+ 
 
-
-data "aws_iam_role" "ecs_execution_role" {
-  name = "ecsTaskExecutionRole-reshma"
-}
-# resource "aws_iam_role" "codedeploy_role" {
-#   name = "CodeDeployECSRole-reshma"
+# ---------------- IAM ----------------
+# resource "aws_iam_role" "ecs_execution_role" {
+#   name = "ecsTaskExecutionRole-reshma"
 
 #   assume_role_policy = jsonencode({
 #     Version = "2012-10-17"
 #     Statement = [{
 #       Effect    = "Allow"
-#       Principal = { Service = "codedeploy.amazonaws.com" }
+#       Principal = { Service = "ecs-tasks.amazonaws.com" }
 #       Action    = "sts:AssumeRole"
 #     }]
 #   })
 # }
 
-# resource "aws_iam_role_policy_attachment" "codedeploy_policy" {
-#   role       = aws_iam_role.codedeploy_role.name
-#   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
-# }
-data "aws_iam_role" "codedeploy_role" {
-  name = "CodeDeployECSRole-reshma"
-}
-resource "aws_codedeploy_app" "strapi" {
-  name             = "strapi-codedeploy-reshma"
-  compute_platform = "ECS"
+data "aws_iam_role" "ecs_execution_role" {
+  name = "ecsTaskExecutionRole-reshma"
 }
 
 
@@ -215,8 +180,8 @@ resource "aws_ecs_task_definition" "strapi" {
   container_definitions = jsonencode([
     {
       name  = "strapi-reshma"
-      image = "${data.aws_ecr_repository.strapi.repository_url}:${var.image_tag}"
-
+      # image = "${data.aws_ecr_repository.strapi.repository_url}:${var.image_tag}"
+      image = "PLACEHOLDER_IMAGE"
       essential = true
 
       portMappings = [{
@@ -257,93 +222,21 @@ resource "aws_ecs_task_definition" "strapi" {
       }
     }
   ])
-}
-resource "aws_codedeploy_deployment_group" "strapi" {
-  app_name              = aws_codedeploy_app.strapi.name
-  deployment_group_name = "strapi-dg-reshma"
-  service_role_arn      = data.aws_iam_role.codedeploy_role.arn
-
-  deployment_style {
-    deployment_type   = "BLUE_GREEN"
-    deployment_option = "WITH_TRAFFIC_CONTROL"
-  }
-
-  deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
-
-  auto_rollback_configuration {
-    enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
-  }
-
-  ecs_service {
-    cluster_name = aws_ecs_cluster.strapi.name
-    service_name = aws_ecs_service.strapi.name
-  }
-
-  blue_green_deployment_config {
-    terminate_blue_instances_on_deployment_success {
-      action                           = "TERMINATE"
-      termination_wait_time_in_minutes = 5
-    }
-
-    deployment_ready_option {
-      action_on_timeout = "CONTINUE_DEPLOYMENT"
-    }
-  }
- 
-  load_balancer_info {
-    target_group_pair_info {
-      prod_traffic_route {
-        listener_arns = [aws_lb_listener.http.arn]
-      }
-
-      target_group {
-        name = aws_lb_target_group.strapi_blue.name
-      }
-
-      target_group {
-        name = aws_lb_target_group.strapi_green.name
-      }
-    }
-  }
-
-  depends_on = [
-    aws_ecs_service.strapi,
-    aws_lb_listener.http
-  ]
-}
+} 
 
 
-
-# resource "aws_ecs_service" "strapi" {
-#   name            = "strapi-service-reshma"
-#   cluster         = aws_ecs_cluster.strapi.id
-#   task_definition = aws_ecs_task_definition.strapi.arn
-#   desired_count   = 1
-#   launch_type     = "FARGATE"
-
-#   network_configuration {
-#     subnets          = data.aws_subnets.default.ids
-#     security_groups  = [aws_security_group.ecs_sg.id]
-#     assign_public_ip = true
-#   }
-
-#   depends_on = [aws_db_instance.postgres]
-# }
 resource "aws_ecs_service" "strapi" {
-  name          = "strapi-service-reshma"
-  cluster       = aws_ecs_cluster.strapi.id
+  name            = "strapi-service-reshma"
+  cluster         = aws_ecs_cluster.strapi.id
   task_definition = aws_ecs_task_definition.strapi.arn
-  desired_count = 1
+  desired_count   = 1
+
+  launch_type = "FARGATE"
 
   deployment_controller {
     type = "CODE_DEPLOY"
   }
-
-  capacity_provider_strategy {
-    capacity_provider = "FARGATE"
-    weight            = 1
-  }
+  
 
   network_configuration {
     subnets          = data.aws_subnets.default.ids
@@ -357,13 +250,13 @@ resource "aws_ecs_service" "strapi" {
     container_port   = 1337
   }
 
-  health_check_grace_period_seconds = 120
-
-  depends_on = [aws_lb_listener.http]
+  depends_on = [
+    aws_lb_listener.http
+  ]
 }
 
-
-
+ 
+ 
 # provider "aws" {
 #   region = var.aws_region
 # }

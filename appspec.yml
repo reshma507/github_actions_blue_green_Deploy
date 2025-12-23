@@ -7,5 +7,3 @@ Resources:
         LoadBalancerInfo:
           ContainerName: strapi-reshma
           ContainerPort: 1337
-
- 

@@ -29,5 +29,3 @@ jobs:
         run: |
          terraform apply -auto-approve \
          -var="image_tag=${{ github.event.inputs.image_tag }}"
-
-

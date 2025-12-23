@@ -22,6 +22,7 @@ variable "db_password" {
 variable "db_allocated_storage" {
   default = 20
 }
+variable "aws_account_id" {}
 variable "app_keys" {}
 variable "api_token_salt" {}
 variable "admin_jwt_secret" {}

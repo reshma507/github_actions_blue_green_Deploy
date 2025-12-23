@@ -7,4 +7,5 @@ admin_jwt_secret = "BAtS+/RTXz97ztKthDHJ2g=="
 transfer_token_salt = "kDiBX+hOa+bhAKPpSFR37A=="
 encryption_key  = "8sPv6kraSJAPrV50wj2jpA=="
 admin_auth_secret = "H3F9oWqv7J2u1PcQ5tUyZg=="
+aws_account_id = 301782007642
  
