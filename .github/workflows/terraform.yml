@@ -81,15 +81,22 @@ jobs:
           }
           EOF
 
-          echo "Creating CodeDeploy deployment..."
+          cat > deployment.json <<EOF
+          {
+            "applicationName": "strapi-codedeploy-reshma",
+            "deploymentGroupName": "strapi-dg-reshma",
+            "revision": {
+              "revisionType": "AppSpecContent",
+              "appSpecContent": {
+                "content": $(jq -c . appspec.json)
+              }
+            },
+            "description": "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
+          }
+          EOF
 
           aws deploy create-deployment \
-            --application-name strapi-codedeploy-reshma \
-            --deployment-group-name strapi-dg-reshma \
-            --revision revisionType=AppSpecContent,appSpecContent=@appspec.json \
-            --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
-
-
+            --cli-input-json file://deployment.json
 
 
 # name: CD - Terraform Deploy
