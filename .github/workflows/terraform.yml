@@ -83,26 +83,36 @@ jobs:
 
       - name: Trigger CodeDeploy Deployment
         run: |
+          set -e
+
           TASK_DEF_ARN="${{ steps.get_task_def.outputs.taskDefinitionArn }}"
 
-          REVISION_JSON=$(jq -n \
+          # Build AppSpec content as STRING (required by CodeDeploy)
+          APPSPEC_CONTENT=$(jq -n \
             --arg taskdef "$TASK_DEF_ARN" \
+            '{
+              version: "1.0",
+              Resources: [{
+                TargetService: {
+                  Type: "AWS::ECS::Service",
+                  Properties: {
+                    TaskDefinition: $taskdef,
+                    LoadBalancerInfo: {
+                      ContainerName: "strapi",
+                      ContainerPort: 1337
+                    }
+                  }
+                }
+              }]
+            }' | jq -c '.')
+
+          # Wrap AppSpec inside revision.content
+          REVISION_JSON=$(jq -n \
+            --arg content "$APPSPEC_CONTENT" \
             '{
               revisionType: "AppSpecContent",
               appSpecContent: {
-                version: "1.0",
-                Resources: [{
-                  TargetService: {
-                    Type: "AWS::ECS::Service",
-                    Properties: {
-                      TaskDefinition: $taskdef,
-                      LoadBalancerInfo: {
-                        ContainerName: "strapi",
-                        ContainerPort: 1337
-                      }
-                    }
-                  }
-                }]
+                content: $content
               }
             }')
 
