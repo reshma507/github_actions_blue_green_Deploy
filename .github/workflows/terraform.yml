@@ -20,9 +20,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ------------------------------------
+      # Checkout Code
+      # ------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ------------------------------------
+      # Configure AWS
+      # ------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -30,6 +36,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # ------------------------------------
+      # Terraform Setup
+      # ------------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -46,9 +55,9 @@ jobs:
               -var="image_tag=${{ github.event.inputs.image_tag }}"
           fi
 
-      # --------------------------------------------------
-      # 🚀 CREATE CODEDEPLOY DEPLOYMENT (ONLY ON APPLY)
-      # --------------------------------------------------
+      # ------------------------------------
+      # 🚀 Create CodeDeploy Deployment (ONLY ON APPLY)
+      # ------------------------------------
       - name: Create CodeDeploy Deployment
         if: github.event.inputs.action == 'apply'
         run: |
@@ -63,10 +72,10 @@ jobs:
 
           echo "Task Definition ARN: $TASK_DEF_ARN"
 
-          export TASK_DEF_ARN
-
-          # ---------- AppSpec template ----------
-          cat <<'EOF' > appspec.template.json
+          # ------------------------------
+          # Create AppSpec file
+          # ------------------------------
+          cat > appspec.json <<EOF
           {
             "version": 1,
             "Resources": [
@@ -86,29 +95,14 @@ jobs:
           }
           EOF
 
-          # Replace env vars safely
-          envsubst < appspec.template.json > appspec.json
-
-          # ---------- Deployment JSON ----------
-          cat <<EOF > deployment.json
-          {
-            "applicationName": "strapi-codedeploy-reshma",
-            "deploymentGroupName": "strapi-dg-reshma",
-            "revision": {
-              "revisionType": "AppSpecContent",
-              "appSpecContent": {
-                "content": "$(jq -c . appspec.json)"
-              }
-            },
-            "description": "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
-          }
-          EOF
-
           echo "Creating CodeDeploy deployment..."
 
           aws deploy create-deployment \
-            --cli-input-json file://deployment.json
- 
+            --application-name strapi-codedeploy-reshma \
+            --deployment-group-name strapi-dg-reshma \
+            --revision revisionType=AppSpecContent,appSpecContent=content="$(jq -c . appspec.json)" \
+            --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
+
 
 
 # name: CD - Terraform Deploy
