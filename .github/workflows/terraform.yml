@@ -52,6 +52,8 @@ jobs:
       - name: Create CodeDeploy Deployment
         if: github.event.inputs.action == 'apply'
         run: |
+          set -e
+
           echo "Fetching latest task definition..."
 
           TASK_DEF_ARN=$(aws ecs describe-task-definition \
@@ -61,7 +63,7 @@ jobs:
 
           echo "Task Definition ARN: $TASK_DEF_ARN"
 
-          cat > appspec.json <<EOF
+          cat <<EOF > appspec.json
           {
             "version": 1,
             "Resources": [
@@ -81,14 +83,14 @@ jobs:
           }
           EOF
 
-          cat > deployment.json <<EOF
+          cat <<EOF > deployment.json
           {
             "applicationName": "strapi-codedeploy-reshma",
             "deploymentGroupName": "strapi-dg-reshma",
             "revision": {
               "revisionType": "AppSpecContent",
               "appSpecContent": {
-                "content": $(jq -c . appspec.json)
+                "content": "$(jq -c . appspec.json)"
               }
             },
             "description": "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
@@ -97,6 +99,8 @@ jobs:
 
           aws deploy create-deployment \
             --cli-input-json file://deployment.json
+
+
 
 
 # name: CD - Terraform Deploy
