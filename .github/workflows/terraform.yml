@@ -63,44 +63,52 @@ jobs:
 
           echo "Task Definition ARN: $TASK_DEF_ARN"
 
-          printf '%s\n' \
-          '{' \
-          '  "version": 1,' \
-          '  "Resources": [' \
-          '    {' \
-          '      "TargetService": {' \
-          '        "Type": "AWS::ECS::Service",' \
-          '        "Properties": {' \
-          "          \"TaskDefinition\": \"$TASK_DEF_ARN\"," \
-          '          "LoadBalancerInfo": {' \
-          '            "ContainerName": "strapi-reshma",' \
-          '            "ContainerPort": 1337' \
-          '          }' \
-          '        }' \
-          '      }' \
-          '    }' \
-          '  ]' \
-          '}' > appspec.json
+          export TASK_DEF_ARN
 
-          APP_SPEC=$(jq -c . appspec.json)
+          # ---------- AppSpec template ----------
+          cat <<'EOF' > appspec.template.json
+          {
+            "version": 1,
+            "Resources": [
+              {
+                "TargetService": {
+                  "Type": "AWS::ECS::Service",
+                  "Properties": {
+                    "TaskDefinition": "$TASK_DEF_ARN",
+                    "LoadBalancerInfo": {
+                      "ContainerName": "strapi-reshma",
+                      "ContainerPort": 1337
+                    }
+                  }
+                }
+              }
+            ]
+          }
+          EOF
 
-          printf '%s\n' \
-          '{' \
-          '  "applicationName": "strapi-codedeploy-reshma",' \
-          '  "deploymentGroupName": "strapi-dg-reshma",' \
-          '  "revision": {' \
-          '    "revisionType": "AppSpecContent",' \
-          '    "appSpecContent": {' \
-          "      \"content\": \"$APP_SPEC\"" \
-          '    }' \
-          '  },' \
-          "  \"description\": \"GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}\"" \
-          '}' > deployment.json
+          # Replace env vars safely
+          envsubst < appspec.template.json > appspec.json
+
+          # ---------- Deployment JSON ----------
+          cat <<EOF > deployment.json
+          {
+            "applicationName": "strapi-codedeploy-reshma",
+            "deploymentGroupName": "strapi-dg-reshma",
+            "revision": {
+              "revisionType": "AppSpecContent",
+              "appSpecContent": {
+                "content": "$(jq -c . appspec.json)"
+              }
+            },
+            "description": "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
+          }
+          EOF
+
+          echo "Creating CodeDeploy deployment..."
 
           aws deploy create-deployment \
             --cli-input-json file://deployment.json
-  
-
+ 
 
 
 # name: CD - Terraform Deploy
