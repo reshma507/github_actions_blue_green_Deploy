@@ -84,10 +84,11 @@ jobs:
           echo "Creating CodeDeploy deployment..."
 
           aws deploy create-deployment \
-          --application-name strapi-codedeploy-reshma \
-          --deployment-group-name strapi-dg-reshma \
-          --revision revisionType=AppSpecContent,appSpecContent="$(cat appspec.json)" \
-          --description "GitHub Actions deployment - image bed1b03"
+            --application-name strapi-codedeploy-reshma \
+            --deployment-group-name strapi-dg-reshma \
+            --revision revisionType=AppSpecContent,appSpecContent=@appspec.json \
+            --description "GitHub Actions deployment - taskdef ${TASK_DEF_ARN##*:}"
+
 
 
 
