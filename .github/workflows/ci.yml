@@ -9,41 +9,89 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Configure AWS
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: eu-north-1
 
-      - name: Debug AWS identity and region
-        run: |
-          aws sts get-caller-identity
-          echo "AWS_REGION=$AWS_REGION"
-
-      - name: Ensure ECR repo exists
-        run: |
-          aws ecr describe-repositories \
-          --repository-names strapi-app-reshma \
-          --region $AWS_REGION \
-          || aws ecr create-repository \
-          --repository-name strapi-app-reshma \
-          --region $AWS_REGION
-
-      - name: Login to ECR
+      - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & Push Image
+      - name: Generate image tag
+        id: image_tag
         run: |
-          TAG=${GITHUB_SHA::7}
-          IMAGE="${{ secrets.ECR_REPO }}:$TAG"
+          TAG="${GITHUB_SHA::7}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-          echo "Building image: $IMAGE"
+      - name: Build & Push Docker Image
+        run: |
+          IMAGE_URI="${{ secrets.ECR_REPO }}:${{ steps.image_tag.outputs.tag }}"
+          echo "Building image: $IMAGE_URI"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
 
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
+      - name: Trigger CD workflow
+        uses: peter-evans/workflow-dispatch@v1
+        with:
+          workflow: terraform.yml
+          ref: main
+          inputs:
+            image_tag: "${{ steps.image_tag.outputs.tag }}"
+            action: apply
+
+
+
+# name: CI - Build & Push to ECR
+
+# on:
+#   push:
+#     branches: ["main"]
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Configure AWS
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ secrets.AWS_REGION }}
+
+#       - name: Debug AWS identity and region
+#         run: |
+#           aws sts get-caller-identity
+#           echo "AWS_REGION=$AWS_REGION"
+
+#       - name: Ensure ECR repo exists
+#         run: |
+#           aws ecr describe-repositories \
+#           --repository-names strapi-app-reshma \
+#           --region $AWS_REGION \
+#           || aws ecr create-repository \
+#           --repository-name strapi-app-reshma \
+#           --region $AWS_REGION
+
+#       - name: Login to ECR
+#         uses: aws-actions/amazon-ecr-login@v2
+
+#       - name: Build & Push Image
+#         run: |
+#           TAG=${GITHUB_SHA::7}
+#           IMAGE="${{ secrets.ECR_REPO }}:$TAG"
+
+#           echo "Building image: $IMAGE"
+
+#           docker build -t "$IMAGE" .
+#           docker push "$IMAGE"
 
 # name: CI - Build & Push to ECR
 
