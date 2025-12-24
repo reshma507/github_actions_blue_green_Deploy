@@ -1,4 +1,4 @@
-version: 1
+version: 1.0
 Resources:
   - TargetService:
       Type: AWS::ECS::Service
@@ -7,6 +7,7 @@ Resources:
         LoadBalancerInfo:
           ContainerName: strapi-reshma
           ContainerPort: 1337
+
 
 
 # version: 1
