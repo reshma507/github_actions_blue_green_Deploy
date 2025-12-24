@@ -31,8 +31,7 @@ jobs:
       - name: Build & Push Docker Image
         run: |
           IMAGE_URI="${{ secrets.ECR_REPO }}:${{ steps.image_tag.outputs.tag }}"
-          echo "Building image: $IMAGE_URI"
-          docker build -t "$IMAGE_URI" .
+          docker build -t "$IMAGE_URI" . 
           docker push "$IMAGE_URI"
 
       - name: Trigger CD workflow
@@ -40,9 +39,8 @@ jobs:
         with:
           workflow: terraform.yml
           ref: main
-          inputs:
-            image_tag: "${{ steps.image_tag.outputs.tag }}"
-            action: apply
+          inputs.image_tag: ${{ steps.image_tag.outputs.tag }}
+          inputs.action: apply
 
 
 

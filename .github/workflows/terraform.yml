@@ -33,7 +33,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init (S3 backend)
+      - name: Terraform Init
         run: terraform init
 
       - name: Terraform Apply / Destroy
@@ -68,8 +68,6 @@ jobs:
       - name: Get latest ECS Task Definition ARN
         id: get_task_def
         run: |
-          set -e
-
           TASK_ARN=$(aws ecs list-task-definitions \
             --family-prefix strapi-task-reshma \
             --sort DESC \
@@ -77,7 +75,7 @@ jobs:
             --output text)
 
           if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
-            echo "❌ ERROR: No ECS task definition found"
+            echo "❌ No ECS task definition found"
             exit 1
           fi
 
@@ -89,17 +87,126 @@ jobs:
             appspec.yml > appspec_rendered.yml
 
       - name: Trigger CodeDeploy Deployment
+        id: deploy
         run: |
-         set -e
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name strapi-codedeploy-reshma \
+            --deployment-group-name strapi-dg-reshma \
+            --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
+            --revision "revisionType=AppSpecContent,appSpecContent={content=$(cat appspec_rendered.yml)}" \
+            --description "GitHub Actions deployment - ECS Blue/Green" \
+            --query 'deploymentId' \
+            --output text)
 
-         APPSPEC_CONTENT=$(cat appspec_rendered.yml)
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
 
-         aws deploy create-deployment \
-         --application-name strapi-codedeploy-reshma \
-         --deployment-group-name strapi-dg-reshma \
-         --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
-         --revision "revisionType=AppSpecContent,appSpecContent={content=$(printf '%s' "$APPSPEC_CONTENT")}" \
-         --description "GitHub Actions deployment - ECS Blue/Green"
+      - name: Wait for CodeDeploy Deployment
+        run: |
+          aws deploy wait deployment-successful \
+            --deployment-id ${{ steps.deploy.outputs.deployment_id }}
+
+# name: CD - Terraform Deploy
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       image_tag:
+#         description: "Docker image tag to deploy"
+#         required: true
+#       action:
+#         description: "Terraform action"
+#         required: true
+#         default: "apply"
+#         type: choice
+#         options:
+#           - apply
+#           - destroy
+
+# jobs:
+#   terraform:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: eu-north-1
+
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+
+#       - name: Terraform Init (S3 backend)
+#         run: terraform init
+
+#       - name: Terraform Apply / Destroy
+#         run: |
+#           if [ "${{ github.event.inputs.action }}" = "apply" ]; then
+#             terraform apply -auto-approve \
+#               -var="image_tag=${{ github.event.inputs.image_tag }}"
+#           else
+#             terraform destroy -auto-approve
+#           fi
+
+#   ecs-deploy:
+#     runs-on: ubuntu-latest
+#     needs: terraform
+#     if: ${{ github.event.inputs.action == 'apply' }}
+
+#     env:
+#       AWS_REGION: eu-north-1
+#       AWS_DEFAULT_REGION: eu-north-1
+
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: eu-north-1
+
+#       - name: Get latest ECS Task Definition ARN
+#         id: get_task_def
+#         run: |
+#           set -e
+
+#           TASK_ARN=$(aws ecs list-task-definitions \
+#             --family-prefix strapi-task-reshma \
+#             --sort DESC \
+#             --query 'taskDefinitionArns[0]' \
+#             --output text)
+
+#           if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
+#             echo "❌ ERROR: No ECS task definition found"
+#             exit 1
+#           fi
+
+#           echo "taskDefinitionArn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+
+#       - name: Render AppSpec file
+#         run: |
+#           sed "s|TASK_DEF_PLACEHOLDER|${{ steps.get_task_def.outputs.taskDefinitionArn }}|" \
+#             appspec.yml > appspec_rendered.yml
+
+#       - name: Trigger CodeDeploy Deployment
+#         run: |
+#          set -e
+
+#          APPSPEC_CONTENT=$(cat appspec_rendered.yml)
+
+#          aws deploy create-deployment \
+#          --application-name strapi-codedeploy-reshma \
+#          --deployment-group-name strapi-dg-reshma \
+#          --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
+#          --revision "revisionType=AppSpecContent,appSpecContent={content=$(printf '%s' "$APPSPEC_CONTENT")}" \
+#          --description "GitHub Actions deployment - ECS Blue/Green"
 
 
 
