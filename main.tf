@@ -13,6 +13,15 @@ data "aws_subnets" "default" {
     values = [data.aws_vpc.default.id]
   }
 }
+# terraform {
+#   backend "s3" {
+#     bucket         = "strapi-terraform-state-reshma"
+#     key            = "ecs/terraform.tfstate"
+#     region         = "eu-north-1"
+#     encrypt        = true
+#   }
+# }
+
 
 # ---------------- SECURITY GROUPS ----------------
 
