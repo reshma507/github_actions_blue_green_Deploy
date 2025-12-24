@@ -90,16 +90,17 @@ jobs:
 
       - name: Trigger CodeDeploy Deployment
         run: |
-          set -e
+         set -e
 
-          APPSPEC_B64=$(base64 appspec_rendered.yml | tr -d '\n')
+         APPSPEC_CONTENT=$(cat appspec_rendered.yml)
 
-          aws deploy create-deployment \
-            --application-name strapi-codedeploy-reshma \
-            --deployment-group-name strapi-dg-reshma \
-            --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
-            --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
-            --description "GitHub Actions deployment - ECS Blue/Green"
+         aws deploy create-deployment \
+         --application-name strapi-codedeploy-reshma \
+         --deployment-group-name strapi-dg-reshma \
+         --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
+         --revision "revisionType=AppSpecContent,appSpecContent={content=$(printf '%s' "$APPSPEC_CONTENT")}" \
+         --description "GitHub Actions deployment - ECS Blue/Green"
+
 
 
 # name: CD - Terraform Deploy
