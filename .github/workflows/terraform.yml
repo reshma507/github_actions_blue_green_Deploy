@@ -69,6 +69,7 @@ jobs:
         id: get_task_def
         run: |
           set -e
+
           TASK_ARN=$(aws ecs list-task-definitions \
             --family-prefix strapi-task-reshma \
             --sort DESC \
@@ -76,19 +77,22 @@ jobs:
             --output text)
 
           if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
-            echo "❌ No ECS task definition found"
+            echo "❌ ERROR: No ECS task definition found"
             exit 1
           fi
 
           echo "taskDefinitionArn=$TASK_ARN" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare AppSpec file
+      - name: Render AppSpec file
         run: |
-          sed -i "s|TASK_DEF_PLACEHOLDER|${{ steps.get_task_def.outputs.taskDefinitionArn }}|" appspec.yml
+          sed "s|TASK_DEF_PLACEHOLDER|${{ steps.get_task_def.outputs.taskDefinitionArn }}|" \
+            appspec.yml > appspec_rendered.yml
 
       - name: Trigger CodeDeploy Deployment
         run: |
-          APPSPEC_B64=$(base64 -w 0 appspec.yml)
+          set -e
+
+          APPSPEC_B64=$(base64 appspec_rendered.yml | tr -d '\n')
 
           aws deploy create-deployment \
             --application-name strapi-codedeploy-reshma \
@@ -96,6 +100,7 @@ jobs:
             --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
             --revision "revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_B64}" \
             --description "GitHub Actions deployment - ECS Blue/Green"
+
 
 # name: CD - Terraform Deploy
 
