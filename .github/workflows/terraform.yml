@@ -99,14 +99,15 @@ jobs:
         id: deploy
         run: |
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name strapi-codedeploy-reshma \
-            --deployment-group-name strapi-dg-reshma \
-            --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
-            --revision "revisionType=AppSpecContent,appSpecContent={content=$(cat appspec_rendered.yml)}" \ 
-            --query 'deploymentId' \
-            --output text)
+          --application-name strapi-codedeploy-reshma \
+          --deployment-group-name strapi-dg-reshma \
+          --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
+          --revision "revisionType=AppSpecContent,appSpecContent={content=$(cat appspec_rendered.yml)}" \
+          --query 'deploymentId' \
+          --output text)
 
           echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+
 
       - name: Wait for deployment to complete
         run: |
